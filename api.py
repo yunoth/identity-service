@@ -1,9 +1,8 @@
 import pymysql
 from config import mysql
 from app import app
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session
 
-# CRUD Operation - CREATE
 @app.route('/add', methods=['POST'])
 def add():
     try:
@@ -29,7 +28,6 @@ def add():
         Pointer.close()
         connection.close()
 
-#CRUD Operation - DELETE
 @app.route('/delete/<string:id>', methods=['POST'])
 def delete(id):
     try:
@@ -46,7 +44,6 @@ def delete(id):
         Pointer.close()
         connection.close()
 
-#CRUD Operation - READ
 @app.route('/list/<string:username>', methods=['POST'])
 def list(username):
     try:
@@ -79,7 +76,6 @@ def listall():
         Pointer.close()
         connection.close()
 
-#CRUD Operation - UPDATE
 @app.route('/update', methods=['POST'])
 def update():
     try:
@@ -105,7 +101,60 @@ def update():
         Pointer.close()
         connection.close()
 
+@app.route('/login', methods=['POST'])
+def login():
+    conn = None
+    cursor = None
+    try:
+        json = request.json
+        username = json['username']
+        password = json['password']
 
+        # validate the received values
+        if username and password:
+            #check user exists
+            conn = mysql.connect()
+            cursor = conn.cursor()
+            sql = "SELECT * FROM users WHERE username=%s"
+            data = (username)
+            cursor.execute(sql, data)
+            row = cursor.fetchone()
+            if row:
+                if row[2] == password:
+                    #session['username'] = row[1]
+                    return jsonify({'message': 'You are logged in successfully'})
+                else:
+                    resp = jsonify({'message': 'Bad Request - invalid password'})
+                    resp.status_code = 400
+                    return resp
+        else:
+            resp = jsonify({'message': 'Bad Request - invalid credendtials'})
+            resp.status_code = 400
+            return resp
+    except:
+        resp = jsonify({'message':'invalid request'})
+        resp.status_code = 400
+        return resp
+    finally:
+        if cursor and conn:
+            cursor.close()
+            conn.close()
+
+@app.route('/logout')
+def logout():
+    if 'username' in session:
+        session.pop('username', None)
+    return jsonify({'message' : 'You successfully logged out'})
+
+@app.route('/')
+def home():
+    if 'username' in session:
+        #username = session['username']
+        return jsonify({'message' : 'You are already logged in', 'username' : username})
+    else:
+        resp = jsonify({'message' : 'Unauthorized'})
+        resp.status_code = 401
+        return resp
 
 if __name__ == "__main__":
     app.run(debug=True, use_debugger=True)
